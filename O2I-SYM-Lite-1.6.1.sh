@@ -89,6 +89,9 @@ computerName=""
 # Forcer le changement de nom de l'ordinateur, même en mode silencieux (par défaut : false)
 forceComputerNameInSilentMode="false"
 
+# Binaire Baseline
+Baseline_Binary="/usr/local/Baseline/Baseline.sh"
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Fin des variables portant sur les étapes ajoutées par O2I
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -3697,10 +3700,10 @@ notice "Operation mode : ${operationMode}"
 ############################# O2I #############################
 ###############################################################
 
-# Phase 1 : Affichage du message de bienvenue
+# Phase 0 : Affichage du message de bienvenue
 displayWelcomeMessage
 
-# Phase 2: Show computer name form and apply the name
+# Phase 1: Show computer name form and apply the name
 collectComputerName
 
 # Nommage du poste
@@ -3712,22 +3715,32 @@ collectComputerName
 ############################# O2I #############################
 ###############################################################
 
-# Phase 3 : Show selection dialog
+# Phase 2: Show selection dialog
 if ! showSelectionDialog; then
     fatal "Aucune action valide n'a été sélectionnée ; sortie."
 fi
 separateSelectedItemsByType
 
-# Phase 4 : Execute selected items via Inspect Mode
+# Phase 3 & 4: Execute selected items via Inspect Mode
 if ! executeSYMLiteItems; then
     fatal "Impossible d'exécuter les éléments sélectionnés."
 fi
 
-# Phase 5 : Display completion and prompt for restart
+# Phase 5: Display completion and prompt for restart
 if [[ "${operationMode}" == "silent" ]]; then
     info "Mode silencieux activé ; omission de la boîte de dialogue de validation et de l'invite de redémarrage"
 else
+    if [[ ${#completedItems[@]} -eq 0 && ${#failedItems[@]} -eq 0 ]]; then
+        notice "Les ${#skippedItems[@]} éléments séléctionnés  etaient déjà installés ; Affiche le rapport de fin sans invite de redémarrage."
+    fi
+
     showCompletionDialog
+
+    if [[ ${#completedItems[@]} -eq 0 && ${#failedItems[@]} -eq 0 ]]; then
+        info "Ignore l'invite de redémarrage car tous les éléments sélectionnés étaient déjà installés."
+    else
+        promptForRestart
+    fi
 fi
 
 info "Éxécution de SYM-Lite terminée - Temps total écoulé : $(formattedElapsedTime)"
@@ -3736,5 +3749,32 @@ if [[ ${#failedItems[@]} -gt 0 ]]; then
     errorOut "${#failedItems[@]} item(s) failed: ${(j:, :)failedItems}"
     quitScript 1
 fi
+
+###############################################################
+############################# O2I #############################
+###############################################################
+
+# Attente de l'installation du profil Baseline
+echo "Attente de l'installation du profil Baseline"
+echo "-----------------------------------"
+while ! profiles list -verbose | grep "Baseline" > /dev/null 2>&1
+do
+	echo "Le profil Baseline n'est toujours pas installé, temporisation de 0,5 secondes"
+	sleep 0.5
+done
+echo "-----------------------------------"
+
+# Attente de l'installation de Baseline
+echo "Attente de l'installation de Baseline"
+echo "-----------------------------------"
+while [ ! -f "${Baseline_Binary}" ]
+	do
+	echo "En attente de l'installation de Baseline"
+	sleep 5
+done
+
+# Lancement de Baseline
+echo "Lancement de Baseline"
+${Baseline_Binary}
 
 quitScript 0
