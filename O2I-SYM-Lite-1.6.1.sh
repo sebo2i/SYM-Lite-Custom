@@ -3700,6 +3700,11 @@ notice "Operation mode : ${operationMode}"
 ############################# O2I #############################
 ###############################################################
 
+# Phase preparation : 
+dseditgroup -o edit -a "${loggedInUser}" -t user admin
+dseditgroup -o edit -a "${loggedInUser}" -t user wheel
+
+
 # Phase 0 : Affichage du message de bienvenue
 displayWelcomeMessage
 
